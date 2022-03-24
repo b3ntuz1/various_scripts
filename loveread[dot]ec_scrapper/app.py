@@ -6,10 +6,12 @@ from urllib.parse import urlparse, parse_qs
 from ebooklib import epub
 
 url = "http://loveread.ec/read_book.php?id=62726&p=1"
+# url = 'http://loveread.ec/read_book.php?id=6240&p=1'
+title = '<h2>Intro</h2>'
 toc = []
-title = 'Intro'
+toc.append(title)
 dic = {}
-dic[title] = ''
+dic[title] = title + '<br />'
 
 
 def get_html(url):
