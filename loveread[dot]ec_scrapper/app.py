@@ -5,13 +5,14 @@ from urllib.parse import urlparse, parse_qs
 
 from ebooklib import epub
 
-url = "http://loveread.ec/read_book.php?id=62726&p=1"
-# url = 'http://loveread.ec/read_book.php?id=6240&p=1'
+# url = "http://loveread.ec/read_book.php?id=62726&p=1"
+url = 'http://loveread.ec/read_book.php?id=6240&p=1'
 title = 'Intro'
 toc = []
 toc.append(title)
 dic = {}
 dic[title] = title
+img_list = []
 
 
 def get_html(url):
@@ -33,7 +34,20 @@ def get_max_page_num(nav):
 
 
 def get_image(imgurl):
-    pass
+    '''
+    1. отримати imgurl
+    2. завантажити картинку
+    3. зформувати новий img тег
+    4. додати ім'я файлу картинки та бінарні дані у глобальний список
+       для подальшої обробки
+    '''
+    global img_list
+    with urlopen(imgurl) as rh:
+        img_data = rh.read()
+    img_name = imgurl.split('/')[-1]
+    img_tag = f'<img src="{img_name}" />'
+    img_list.append({'img_data': img_data, 'img_name': img_name})
+    return img_tag
 
 
 def clear_data(data):
@@ -61,22 +75,27 @@ def get_chapters(soup):
             get_chapters(s)
             continue
         # знайти текст
-        if (s.name == 'p'):
-            dic[title] += f'{clear_data(s)}\n'
         if (s.name == 'img'):
             src = s.get('src')
-            get_image(f'http://loveread.ec/{src}')
+            dic[title] += get_image(f'http://loveread.ec/{src}')
+            continue
+        if (s.name == 'p'):
+            dic[title] += f'{clear_data(s)}\n'
 
 
-def build_book(book_title, authors):
+def build_book(book_title, authors, cover):
     # building the book
     book = epub.EpubBook()
     book.set_identifier('some_id')
     book.set_title(book_title)
     book.set_language('ru')
+
+    cover = cover.select('div.MsoNormal p:nth-child(2) img:nth-child(1)')
+    book.set_cover('cover.jpg', urlopen(f'http://loveread.ec/{cover[0].attrs.get("src")}').read())
     
-    for author in authors:
+    for author in authors.split(', '):
         book.add_author(author)
+
     spine = [] 
     for k in toc:
         file_name = k.replace(' ', '_') + '.html' 
@@ -84,6 +103,14 @@ def build_book(book_title, authors):
         chapter.set_content(dic[k])
         spine.append(chapter)
         book.add_item(chapter)
+
+    for img in img_list:
+        i = epub.EpubImage()
+        i.file_name = img['img_name']
+        i.media_type = 'image/jpeg'
+        i.set_content(img['img_data'])
+        book.add_item(i)
+
     book.toc = spine
     book.spine = spine
     epub.write_epub(book_title.replace(' ', '_') + '.epub', book)
@@ -112,7 +139,7 @@ def main():
         soup = BeautifulSoup(get_html(urlpage), 'lxml').select('.tb_read_book div:nth-child(4)')
         get_chapters(soup[0])
 
-    build_book(book_title, authors)
+    build_book(book_title, authors, html)
 
 if __name__ == '__main__':
     main()
