@@ -7,11 +7,11 @@ from ebooklib import epub
 
 url = "http://loveread.ec/read_book.php?id=62726&p=1"
 # url = 'http://loveread.ec/read_book.php?id=6240&p=1'
-title = '<h2>Intro</h2>'
+title = 'Intro'
 toc = []
 toc.append(title)
 dic = {}
-dic[title] = title + '<br />'
+dic[title] = title
 
 
 def get_html(url):
@@ -32,29 +32,40 @@ def get_max_page_num(nav):
     return max_num
 
 
+def get_image(imgurl):
+    pass
+
+
+def clear_data(data):
+    data = str(data).replace(' class="MsoNormal"', '')
+    return data.strip()
+
+
 def get_chapters(soup):
     ''' повертає словарь де ключ це назва розділу, а значення -- це зміст. '''
-    ''' потрібно зробити:
-    1. знаходити та зберігати картинки
-    2. розрізняти розмітку тексту курсив, жирний і т.д
-    3. почистити від старої html розмітки
-        1. видалити зайві css, класи і т.д
-    '''
     global title
     global dic
     for s in soup.contents:
+        if (s.name == 'form'):
+            continue
         if (s.name == 'div'):
+            # фільтрує навігацію з сайту, як правило, це кінець документу
+            if (s.attrs.get('class') == ['navigation']):
+                break
             # знайти заголовок
             if s.attrs.get('class') == ['take_h1']:
                 title = s.get_text(strip=True)
-                dic[title] = '<h2>' + title + '</h2>\n<br />'
+                dic[title] = '<h2>' + title + '</h2>\n'
                 toc.append(title)
             # рекурсія
             get_chapters(s)
             continue
         # знайти текст
         if (s.name == 'p'):
-            dic[title] += s.get_text(strip=True) + '\n<br />'
+            dic[title] += f'{clear_data(s)}\n'
+        if (s.name == 'img'):
+            src = s.get('src')
+            get_image(f'http://loveread.ec/{src}')
 
 
 def build_book(book_title, authors):
